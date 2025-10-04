@@ -4,22 +4,31 @@ This document describes how Azure Blob Storage is integrated with workspace crea
 
 ## Overview
 
-When an admin creates a workspace, the system automatically creates a corresponding Azure Blob Storage container for that workspace. This allows for organized file storage where each workspace has its own dedicated storage container.
+When an admin creates a workspace, the system automatically creates a corresponding folder within the main Azure Blob Storage container for that workspace. This allows for organized file storage where each workspace has its own dedicated storage folder within a single container.
 
 ## Implementation Details
 
-### 1. Container Creation
+### 1. Folder Creation
 
 When a workspace is created:
-1. A unique container name is generated using the workspace ID: `workspace-{workspaceId}`
-2. The container is created in Azure Blob Storage
-3. The container name is stored with the workspace data
+1. A "workspace" parent folder is created in the main container
+2. A unique workspace folder is generated using the workspace name and ID: `workspace/{workspaceName}-{workspaceId(first 7 digits)}/`
+3. A placeholder blob is created in the main container to represent the folder
+4. The folder path is stored with the workspace data
+5. An Azure AI Search index is created for the workspace with the name format: `{workspaceName}-{workspaceId(first 7 digits)}index`
 
-### 2. Container Deletion
+### 2. File Storage
+
+When files are uploaded to a workspace:
+1. Files are stored in the main container within the workspace-specific folder
+2. File paths follow the format: `workspace/{workspaceName}-{workspaceId(first 7 digits)}/{fileId}-{originalFileName}`
+
+### 3. Folder Deletion
 
 When a workspace is deleted:
-1. The corresponding Azure Blob Storage container is also deleted
-2. All files stored in that container are removed
+1. The corresponding folder and all files within it are deleted from the main container
+2. All files stored in that folder are removed
+3. The associated Azure AI Search index is deleted
 
 ## Services
 
@@ -27,10 +36,21 @@ When a workspace is deleted:
 
 A dedicated service (`WorkspaceStorageService`) handles all blob storage operations for workspaces:
 
-- `createWorkspaceContainer(workspaceId, workspaceName)`: Creates a container for a workspace
-- `deleteWorkspaceContainer(workspaceId)`: Deletes a workspace's container
-- `containerExists(workspaceId)`: Checks if a container exists
-- `listWorkspaceBlobs(workspaceId)`: Lists all blobs in a workspace container
+- `createWorkspaceFolder(workspaceId, workspaceName)`: Creates a folder for a workspace within the main container
+- `deleteWorkspaceFolder(workspaceId, workspaceName)`: Deletes a workspace's folder and all its contents
+- `folderExists(workspaceId, workspaceName)`: Checks if a workspace folder exists
+- `listWorkspaceBlobs(workspaceId, workspaceName)`: Lists all blobs in a workspace folder
+- `getWorkspaceFolderName(workspaceId, workspaceName)`: Gets the workspace folder name used for Azure Search index
+
+### AzureSearchService
+
+A dedicated service (`AzureSearchService`) handles all Azure AI Search operations:
+
+- `createWorkspaceIndex(indexName)`: Creates a search index for a workspace
+- `deleteWorkspaceIndex(indexName)`: Deletes a workspace's search index
+- `indexExists(indexName)`: Checks if a search index exists
+- `indexDocument(indexName, document)`: Indexes a document in the search index
+- `searchDocuments(indexName, searchText, filter)`: Searches for documents in a workspace index
 
 ## Testing
 
@@ -56,33 +76,17 @@ npm run verify-blob-storage
 npm run test-admin-workspace-creation
 ```
 
-## Configuration
+## Access Control
 
-To enable Azure Blob Storage integration, set the following environment variables in your `.env` file:
+### Private Workspaces
+- Files in private workspaces are only accessible to the admin who owns the workspace
 
-```env
-AZURE_STORAGE_ACCOUNT_NAME=your-storage-account-name
-AZURE_STORAGE_ACCOUNT_KEY=your-storage-account-key
-AZURE_STORAGE_CONNECTION_STRING=your-storage-connection-string
-AZURE_STORAGE_CONTAINER_NAME=aiva-files
-```
-
-If these variables are not set, the system will fall back to mock storage mode.
-
-## Security
-
-- Each workspace container is uniquely named using the workspace ID
-- Containers are not publicly accessible by default
-- Access to containers is controlled through the application's authentication system
-
-## Error Handling
-
-- If blob storage operations fail, the workspace creation/deletion still succeeds
-- Errors are logged but don't prevent the main operation
-- The system gracefully falls back to mock mode if Azure services are unavailable
+### Shared Workspaces
+- Files in shared workspaces are accessible to the admin owner and all assigned members
 
 ## Future Enhancements
 
-- Add file upload/download functionality directly to workspace containers
-- Implement access control for container contents
+- Add file upload/download functionality directly to workspace folders
+- Implement access control for folder contents
 - Add metrics and monitoring for storage usage per workspace
+- Enhance semantic search capabilities in Azure AI Search

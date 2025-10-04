@@ -317,15 +317,15 @@ Shared from AIVA Chat System`;
       const response = await workspaceAPI.getWorkspaces();
       if (response.workspaces && response.workspaces.length > 0) {
         setWorkspaces(response.workspaces);
-        setCurrentWorkspaceId(response.workspaces[0].id);
+        // Don't automatically select a workspace, let user choose
+        setCurrentWorkspaceId(null);
       } else {
-        // Instead of creating a default workspace, just set to null
+        // No workspaces available
         setCurrentWorkspaceId(null);
         setWorkspaces([]);
       }
     } catch (error) {
       console.error('Error initializing workspaces:', error);
-      // Instead of trying to create a default workspace, just set to null
       setCurrentWorkspaceId(null);
       setWorkspaces([]);
     }
@@ -569,7 +569,7 @@ Shared from AIVA Chat System`;
   };
 
   // Workspace management functions
-  const handleSelectWorkspace = (workspaceId: string) => {
+  const handleSelectWorkspace = (workspaceId: string | null) => {
     setCurrentWorkspaceId(workspaceId);
     setCurrentView('chat');
     // You could filter chats by workspace here
@@ -1149,10 +1149,12 @@ Shared from AIVA Chat System`;
             <img src="/alyasra-logo.png" alt="Alyasra Logo" className="w-8 h-8" />
             <div className="flex flex-col">
               <h1 className="text-xl font-bold flex justify-start">AIVA</h1>
-              {currentWorkspaceId && (
+              {currentWorkspaceId ? (
                 <p className="text-sm text-slate-300">
                   {workspaces.find(w => w.id === currentWorkspaceId)?.name || 'Workspace'}
                 </p>
+              ) : (
+                <p className="text-sm text-slate-300">General Mode</p>
               )}
             </div>
           </button>

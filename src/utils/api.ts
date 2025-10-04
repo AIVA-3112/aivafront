@@ -1,7 +1,7 @@
 // API utility functions for frontend components
 
 const API_BASE_URL = import.meta.env.PROD 
-  ? '/api'  // Use relative path for production (served by the same server)
+  ? 'https://aiva-chat-app.azurewebsites.net/api' 
   : 'http://localhost:3001/api';
 
 // Get auth token from localStorage
@@ -168,6 +168,12 @@ export const workspaceAPI = {
       console.error('File Upload Request Failed:', `/workspaces/${workspaceId}/upload`, err);
       throw err;
     }
+  },
+  
+  async triggerWorkspaceIndexing(workspaceId: string) {
+    return apiRequest(`/workspaces/${workspaceId}/index`, {
+      method: 'POST',
+    });
   },
   
   async getWorkspaceFiles(workspaceId: string) {

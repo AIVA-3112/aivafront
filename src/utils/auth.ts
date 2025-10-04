@@ -6,18 +6,17 @@ export const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || '
 export const MICROSOFT_TENANT_ID = import.meta.env.VITE_MICROSOFT_TENANT_ID || '53be55ec-4183-4a38-8c83-8e6e12e2318a';
 export const YAHOO_CLIENT_ID = import.meta.env.VITE_YAHOO_CLIENT_ID || 'your-yahoo-client-id';
 
-// Determine base URL based on environment
-const BASE_URL = import.meta.env.PROD 
-  ? window.location.origin 
-  : 'http://localhost:5173';
-
 // Microsoft Authentication Library (MSAL) configuration
 export const msalConfig: Configuration = {
   auth: {
     clientId: MICROSOFT_CLIENT_ID,
     authority: `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}`,
-    redirectUri: BASE_URL,
-    postLogoutRedirectUri: BASE_URL,
+    redirectUri: import.meta.env.PROD 
+      ? 'https://aiva-chat-app.azurewebsites.net' 
+      : 'http://localhost:5173',
+    postLogoutRedirectUri: import.meta.env.PROD 
+      ? 'https://aiva-chat-app.azurewebsites.net' 
+      : 'http://localhost:5173',
   },
   cache: {
     cacheLocation: 'sessionStorage',
@@ -56,7 +55,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 // Google OAuth configuration
 export const googleAuthConfig = {
   client_id: GOOGLE_CLIENT_ID,
-  redirect_uri: `${BASE_URL}/auth/google/callback`,
+  redirect_uri: 'http://localhost:5173/auth/google/callback',
   scope: 'openid email profile',
   response_type: 'code',
   access_type: 'offline',
@@ -66,7 +65,9 @@ export const googleAuthConfig = {
 // Microsoft OAuth configuration
 export const microsoftAuthConfig = {
   client_id: MICROSOFT_CLIENT_ID,
-  redirect_uri: BASE_URL,
+  redirect_uri: import.meta.env.PROD 
+    ? 'https://aiva-chat-app.azurewebsites.net' 
+    : 'http://localhost:5173',
   scope: 'openid email profile User.Read',
   response_type: 'code',
   response_mode: 'query'
@@ -118,7 +119,7 @@ export const getYahooAuthUrl = (): string => {
   const baseUrl = 'https://api.login.yahoo.com/oauth2/request_auth';
   const params = new URLSearchParams({
     client_id: YAHOO_CLIENT_ID,
-    redirect_uri: `${BASE_URL}/auth/yahoo/callback`,
+    redirect_uri: 'http://localhost:5173/auth/yahoo/callback',
     response_type: 'code',
     scope: 'openid email profile'
   });
@@ -412,8 +413,8 @@ export const handleMicrosoftLoginLegacy = async (popup?: Window): Promise<any> =
 export const handleMicrosoftLogout = async (): Promise<void> => {
   try {
     await msalInstance.logoutPopup({
-      postLogoutRedirectUri: BASE_URL,
-      mainWindowRedirectUri: BASE_URL
+      postLogoutRedirectUri: window.location.origin,
+      mainWindowRedirectUri: window.location.origin
     });
   } catch (error) {
     console.error('Microsoft logout error:', error);

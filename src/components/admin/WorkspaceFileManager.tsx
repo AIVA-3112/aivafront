@@ -27,6 +27,7 @@ const WorkspaceFileManager: React.FC<WorkspaceFileManagerProps> = ({
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [indexing, setIndexing] = useState(false);
 
   useEffect(() => {
     loadFiles();
@@ -88,6 +89,29 @@ const WorkspaceFileManager: React.FC<WorkspaceFileManagerProps> = ({
     }
   };
 
+  // Function to trigger workspace indexing
+  const triggerIndexing = async () => {
+    try {
+      setIndexing(true);
+      console.log('Triggering workspace indexing for:', workspaceId);
+      const result = await workspaceAPI.triggerWorkspaceIndexing(workspaceId);
+      console.log('Indexing trigger result:', result);
+    } catch (error: any) {
+      console.error('Failed to trigger workspace indexing:', error);
+      const errorMessage = error.details?.message || error.message || 'Failed to trigger workspace indexing. Please try again.';
+      console.error(`Indexing trigger failed: ${errorMessage}`);
+    } finally {
+      setIndexing(false);
+    }
+  };
+
+  // Handle close with automatic indexing
+  const handleClose = async () => {
+    // Trigger indexing before closing
+    await triggerIndexing();
+    onClose();
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -109,10 +133,15 @@ const WorkspaceFileManager: React.FC<WorkspaceFileManagerProps> = ({
             Files - {workspaceName}
           </h3>
           <button
-            onClick={onClose}
+            onClick={handleClose}
+            disabled={indexing}
             className="p-2 hover:bg-gray-100 rounded transition-colors"
           >
-            <X className="w-4 h-4 text-gray-600" />
+            {indexing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+            ) : (
+              <X className="w-4 h-4 text-gray-600" />
+            )}
           </button>
         </div>
 
@@ -221,10 +250,14 @@ const WorkspaceFileManager: React.FC<WorkspaceFileManagerProps> = ({
         
         <div className="flex justify-end mt-6 pt-4 border-t">
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            onClick={handleClose}
+            disabled={indexing}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center"
           >
-            Close
+            {indexing && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            )}
+            {indexing ? 'Indexing...' : 'Close'}
           </button>
         </div>
       </div>

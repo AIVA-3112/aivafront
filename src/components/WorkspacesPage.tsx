@@ -15,7 +15,7 @@ interface Workspace {
 interface WorkspacesPageProps {
   onBack: () => void;
   workspaces: Workspace[];
-  onSelectWorkspace: (workspaceId: string) => void;
+  onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
 const WorkspacesPage: React.FC<WorkspacesPageProps> = ({ 
@@ -61,6 +61,38 @@ const WorkspacesPage: React.FC<WorkspacesPageProps> = ({
             <h1 className="text-4xl font-bold text-white">Workspaces</h1>
           </div>
           
+        </div>
+
+        {/* General Mode Option */}
+        <div className="bg-white rounded-2xl p-8 mb-8 shadow-xl">
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+              <Folder className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">General Mode</h2>
+              <p className="text-gray-600">Use AIVA without workspace restrictions</p>
+            </div>
+          </div>
+          
+          <div 
+            className="bg-gray-50 rounded-xl p-6 hover:bg-gray-100 transition-colors cursor-pointer border-l-4 border-blue-500 group"
+            onClick={() => onSelectWorkspace(null)}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white bg-blue-500"
+                >
+                  <Folder className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">No Workspace (General Mode)</h3>
+                  <p className="text-gray-600 text-sm">Ask general questions without workspace document restrictions</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Workspaces Section */}
