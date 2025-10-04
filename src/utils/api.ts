@@ -1,7 +1,7 @@
 // API utility functions for frontend components
 
 const API_BASE_URL = import.meta.env.PROD 
-  ? 'https://aiva-chat-app.azurewebsites.net/api' 
+  ? 'https://web-production-50913.up.railway.app' 
   : 'http://localhost:3001/api';
 
 // Get auth token from localStorage
@@ -700,3 +700,4 @@ function getAuthHeadersWithoutContentType() {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
+
