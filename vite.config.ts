@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     proxy: {
       "/api": {
-        target: "https://aiva-wchat.azurewebsites.net/",
+        target: "https://web-production-50913.up.railway.app",
         changeOrigin: true,
         secure: false,
       },
