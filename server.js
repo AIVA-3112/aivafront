@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { DocumentAnalysisClient, AzureKeyCredential } from '@azure/ai-form-recognizer';
+import { TableServiceClient, TableClient, AzureNamedKeyCredential } from '@azure/data-tables';
 import multer from 'multer';
 import dotenv from 'dotenv';
 
@@ -32,9 +33,48 @@ try {
   console.error('❌ Failed to initialize Azure Document Intelligence client:', error.message);
 }
 
+// Initialize Azure Table Storage client (if environment variables are available)
+let tableClient = null;
+try {
+  const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+  const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+  
+  if (accountName && accountKey) {
+    const credential = new AzureNamedKeyCredential(accountName, accountKey);
+    tableClient = new TableClient(
+      `https://${accountName}.table.core.windows.net`,
+      'carddata',
+      credential
+    );
+    console.log('✅ Azure Table Storage client initialized');
+  } else {
+    console.log('⚠️ Azure Table Storage not configured (missing environment variables)');
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize Azure Table Storage client:', error.message);
+}
+
 // Add comprehensive CORS headers for all requests
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  // List of allowed origins
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'https://aiva-wchat.azurewebsites.net',
+    'https://aiva-fron-production.up.railway.app'
+  ];
+  
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // For development, allow all origins
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key, X-Client-ID');
   res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
@@ -175,14 +215,101 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
     
     console.log('Successfully analyzed card document', cardData);
     
+    // Store the extracted data in Azure Table Storage if available
+    let rowKey = 'mock-id';
+    if (tableClient) {
+      try {
+        // Generate a unique row key
+        rowKey = new Date().getTime().toString();
+        
+        // Prepare entity for table storage
+        const entity = {
+          partitionKey: 'admin-cards',
+          rowKey,
+          timestamp: new Date().toISOString(),
+          ...cardData
+        };
+        
+        // Insert entity into table
+        await tableClient.createEntity(entity);
+        console.log('Card data stored successfully in table storage');
+      } catch (storageError) {
+        console.error('Failed to store card data in table storage:', storageError);
+      }
+    }
+    
     res.json({
-      message: 'Card scanned successfully',
-      cardData
+      message: 'Card scanned and data stored successfully',
+      cardData,
+      id: rowKey
     });
   } catch (error) {
     console.error('Card scan error:', error);
     res.status(500).json({ 
       error: 'Failed to scan card',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get all scanned cards
+app.get('/api/admin/cards', async (req, res) => {
+  try {
+    if (!tableClient) {
+      return res.status(503).json({ error: 'Table Storage service is not available' });
+    }
+    
+    console.log('Retrieving all scanned cards');
+    
+    const entities = [];
+    const entitiesIterator = tableClient.listEntities({
+      filter: `PartitionKey eq 'admin-cards'`
+    });
+    
+    for await (const entity of entitiesIterator) {
+      entities.push(entity);
+    }
+    
+    console.log(`Retrieved ${entities.length} card data entities from table storage`);
+    
+    res.json({
+      cards: entities
+    });
+  } catch (error) {
+    console.error('Get cards error:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve cards',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Delete a scanned card
+app.delete('/api/admin/cards/:id', async (req, res) => {
+  try {
+    if (!tableClient) {
+      return res.status(503).json({ error: 'Table Storage service is not available' });
+    }
+    
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'Card ID is required' });
+    }
+    
+    console.log(`Deleting card with ID: ${id}`);
+    
+    await tableClient.deleteEntity('admin-cards', id);
+    
+    console.log('Card data deleted successfully from table storage');
+    
+    res.json({
+      message: 'Card deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete card error:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete card',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
