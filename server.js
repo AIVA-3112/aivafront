@@ -3,16 +3,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { DocumentAnalysisClient, AzureKeyCredential } from '@azure/ai-form-recognizer';
-import { TableServiceClient, TableClient, AzureNamedKeyCredential } from '@azure/data-tables';
+import { TableClient, AzureNamedKeyCredential } from '@azure/data-tables';
 import multer from 'multer';
 import dotenv from 'dotenv';
 
-// Load environment variables from server/.env file
-dotenv.config({ path: path.resolve(process.cwd(), 'server/.env.cleaned') });
-
-// Create __dirname equivalent for ES modules
+// Load environment variables from .env file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app
 const app = express();
