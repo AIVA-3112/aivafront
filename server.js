@@ -63,7 +63,7 @@ app.get('/test', (req, res) => {
 });
 
 // Proxy API requests to the backend service with CORS handling
-const API_BASE_URL = 'http://localhost:3001/';
+const API_BASE_URL = 'https://web-production-50913.up.railway.app/';
 
 // Custom middleware to handle API requests - PLACE BEFORE BODY PARSING
 app.use((req, res, next) => {
@@ -77,7 +77,7 @@ app.use((req, res, next) => {
     const proxy = createProxyMiddleware({
       target: API_BASE_URL,
       changeOrigin: true,
-      secure: false,
+      secure: true,
       // Preserve the original path
       pathRewrite: {
         '^/api': '/api'
@@ -131,8 +131,11 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
 
     console.log('Processing card scan request with Azure Document Intelligence');
     
+    // Get optional custom model ID from query parameters
+    const modelId = req.query.modelId ? String(req.query.modelId) : 'prebuilt-idDocument';
+    
     // Analyze the document using Azure Document Intelligence
-    const poller = await documentIntelligenceClient.beginAnalyzeDocument('prebuilt-idDocument', req.file.buffer);
+    const poller = await documentIntelligenceClient.beginAnalyzeDocument(modelId, req.file.buffer);
     const { documents } = await poller.pollUntilDone();
     
     if (!documents || documents.length === 0) {
@@ -142,14 +145,18 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
     const document = documents[0];
     const fields = document.fields;
     
-    // Extract common passport/card fields
+    // Extract card fields as per requirements
     const cardData = {
+      // Front side fields
+      civilIdNo: fields.DocumentNumber?.value || '',
       name: (fields.FirstName?.value || '') + ' ' + (fields.LastName?.value || ''),
-      passportNumber: fields.DocumentNumber?.value || '',
       nationality: fields.CountryRegion?.value || fields.Nationality?.value || fields.Country?.value || '',
       sex: fields.Sex?.value || fields.Gender?.value || '',
       birthDate: fields.DateOfBirth?.value || '',
-      expiryDate: fields.DateOfExpiration?.value || ''
+      expiryDate: fields.DateOfExpiration?.value || '',
+      
+      // Back side fields
+      serialNo: (fields.SerialNumber?.value || '') || (fields.DocumentNumber?.value || '')
     };
     
     // Clean up name by removing extra spaces
@@ -168,9 +175,39 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
       }
     }
     
+    // Format birth date to show only date part (not time)
+    if (cardData.birthDate) {
+      const birthDate = new Date(cardData.birthDate);
+      if (!isNaN(birthDate.getTime())) {
+        cardData.birthDate = birthDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      }
+    }
+    
+    // Format expiry date to show only date part (not time)
+    if (cardData.expiryDate) {
+      const expiryDate = new Date(cardData.expiryDate);
+      if (!isNaN(expiryDate.getTime())) {
+        cardData.expiryDate = expiryDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      }
+    }
+    
+    // Try alternative field names for serial number if not found
+    if (!cardData.serialNo) {
+      const serialNoFields = ['SerialNumber', 'DocumentNumber', 'IDNumber'];
+      for (const field of serialNoFields) {
+        const value = fields[field]?.value;
+        if (value) {
+          cardData.serialNo = String(value);
+          break;
+        }
+      }
+    }
+    
     // Add any additional fields that might be present
     for (const [key, value] of Object.entries(fields)) {
-      if (!(key in cardData) && value && 'value' in value) {
+      // Skip fields we've already processed
+      const processedFields = ['FirstName', 'LastName', 'DocumentNumber', 'CountryRegion', 'Nationality', 'Country', 'Sex', 'Gender', 'DateOfBirth', 'DateOfExpiration', 'SerialNumber', 'IDNumber', 'IssuingCountry', 'CountryOfIssue'];
+      if (!processedFields.includes(key) && !(key in cardData) && value && 'value' in value) {
         cardData[key] = String(value.value);
       }
     }
@@ -203,8 +240,11 @@ app.post('/api/admin/cards/scan', upload.single('cardImage'), async (req, res) =
 
     console.log('Processing admin card scan request with Azure Document Intelligence');
     
+    // Get optional custom model ID from query parameters
+    const modelId = req.query.modelId ? String(req.query.modelId) : 'prebuilt-idDocument';
+    
     // Analyze the document using Azure Document Intelligence
-    const poller = await documentIntelligenceClient.beginAnalyzeDocument('prebuilt-idDocument', req.file.buffer);
+    const poller = await documentIntelligenceClient.beginAnalyzeDocument(modelId, req.file.buffer);
     const { documents } = await poller.pollUntilDone();
     
     if (!documents || documents.length === 0) {
@@ -214,14 +254,18 @@ app.post('/api/admin/cards/scan', upload.single('cardImage'), async (req, res) =
     const document = documents[0];
     const fields = document.fields;
     
-    // Extract common passport/card fields
+    // Extract card fields as per requirements
     const cardData = {
+      // Front side fields
+      civilIdNo: fields.DocumentNumber?.value || '',
       name: (fields.FirstName?.value || '') + ' ' + (fields.LastName?.value || ''),
-      passportNumber: fields.DocumentNumber?.value || '',
       nationality: fields.CountryRegion?.value || fields.Nationality?.value || fields.Country?.value || '',
       sex: fields.Sex?.value || fields.Gender?.value || '',
       birthDate: fields.DateOfBirth?.value || '',
-      expiryDate: fields.DateOfExpiration?.value || ''
+      expiryDate: fields.DateOfExpiration?.value || '',
+      
+      // Back side fields
+      serialNo: (fields.SerialNumber?.value || '') || (fields.DocumentNumber?.value || '')
     };
     
     // Clean up name by removing extra spaces
@@ -240,9 +284,39 @@ app.post('/api/admin/cards/scan', upload.single('cardImage'), async (req, res) =
       }
     }
     
+    // Format birth date to show only date part (not time)
+    if (cardData.birthDate) {
+      const birthDate = new Date(cardData.birthDate);
+      if (!isNaN(birthDate.getTime())) {
+        cardData.birthDate = birthDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      }
+    }
+    
+    // Format expiry date to show only date part (not time)
+    if (cardData.expiryDate) {
+      const expiryDate = new Date(cardData.expiryDate);
+      if (!isNaN(expiryDate.getTime())) {
+        cardData.expiryDate = expiryDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      }
+    }
+    
+    // Try alternative field names for serial number if not found
+    if (!cardData.serialNo) {
+      const serialNoFields = ['SerialNumber', 'DocumentNumber', 'IDNumber'];
+      for (const field of serialNoFields) {
+        const value = fields[field]?.value;
+        if (value) {
+          cardData.serialNo = String(value);
+          break;
+        }
+      }
+    }
+    
     // Add any additional fields that might be present
     for (const [key, value] of Object.entries(fields)) {
-      if (!(key in cardData) && value && 'value' in value) {
+      // Skip fields we've already processed
+      const processedFields = ['FirstName', 'LastName', 'DocumentNumber', 'CountryRegion', 'Nationality', 'Country', 'Sex', 'Gender', 'DateOfBirth', 'DateOfExpiration', 'SerialNumber', 'IDNumber', 'IssuingCountry', 'CountryOfIssue'];
+      if (!processedFields.includes(key) && !(key in cardData) && value && 'value' in value) {
         cardData[key] = String(value.value);
       }
     }
