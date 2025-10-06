@@ -3,14 +3,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { DocumentAnalysisClient, AzureKeyCredential } from '@azure/ai-form-recognizer';
-import { TableClient, AzureNamedKeyCredential } from '@azure/data-tables';
 import multer from 'multer';
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file
+// Load environment variables from server/.env file
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env.cleaned') });
+
+// Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app
 const app = express();
@@ -31,48 +32,9 @@ try {
   console.error('❌ Failed to initialize Azure Document Intelligence client:', error.message);
 }
 
-// Initialize Azure Table Storage client (if environment variables are available)
-let tableClient = null;
-try {
-  const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
-  const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-  
-  if (accountName && accountKey) {
-    const credential = new AzureNamedKeyCredential(accountName, accountKey);
-    tableClient = new TableClient(
-      `https://${accountName}.table.core.windows.net`,
-      'carddata',
-      credential
-    );
-    console.log('✅ Azure Table Storage client initialized');
-  } else {
-    console.log('⚠️ Azure Table Storage not configured (missing environment variables)');
-  }
-} catch (error) {
-  console.error('❌ Failed to initialize Azure Table Storage client:', error.message);
-}
-
 // Add comprehensive CORS headers for all requests
 app.use((req, res, next) => {
-  // List of allowed origins
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'https://aiva-wchat.azurewebsites.net',
-    'https://aiva-fron-production.up.railway.app'
-  ];
-  
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    // For development, allow all origins
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
+  res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key, X-Client-ID');
   res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
@@ -101,19 +63,21 @@ app.get('/test', (req, res) => {
 });
 
 // Proxy API requests to the backend service with CORS handling
-const API_BASE_URL = 'https://web-production-50913.up.railway.app/';
+const API_BASE_URL = 'http://localhost:3001/';
 
 // Custom middleware to handle API requests - PLACE BEFORE BODY PARSING
 app.use((req, res, next) => {
   // Check if the request is for an API endpoint
-  if (req.url.startsWith('/api/') && !req.url.startsWith('/api/document-intelligence')) {
+  if (req.url.startsWith('/api/') && 
+      !req.url.startsWith('/api/document-intelligence') &&
+      !req.url.startsWith('/api/admin/cards/scan')) {
     console.log('API request:', req.method, req.url);
     
     // Create proxy middleware
     const proxy = createProxyMiddleware({
       target: API_BASE_URL,
       changeOrigin: true,
-      secure: true,
+      secure: false,
       // Preserve the original path
       pathRewrite: {
         '^/api': '/api'
@@ -213,33 +177,9 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
     
     console.log('Successfully analyzed card document', cardData);
     
-    // Store the extracted data in Azure Table Storage if available
-    let rowKey = 'mock-id';
-    if (tableClient) {
-      try {
-        // Generate a unique row key
-        rowKey = new Date().getTime().toString();
-        
-        // Prepare entity for table storage
-        const entity = {
-          partitionKey: 'admin-cards',
-          rowKey,
-          timestamp: new Date().toISOString(),
-          ...cardData
-        };
-        
-        // Insert entity into table
-        await tableClient.createEntity(entity);
-        console.log('Card data stored successfully in table storage');
-      } catch (storageError) {
-        console.error('Failed to store card data in table storage:', storageError);
-      }
-    }
-    
     res.json({
-      message: 'Card scanned and data stored successfully',
-      cardData,
-      id: rowKey
+      message: 'Card scanned successfully',
+      cardData
     });
   } catch (error) {
     console.error('Card scan error:', error);
@@ -250,64 +190,73 @@ app.post('/api/document-intelligence/scan-card', upload.single('cardImage'), asy
   }
 });
 
-// Get all scanned cards
-app.get('/api/admin/cards', async (req, res) => {
+// Admin card scanning endpoint (for frontend compatibility)
+app.post('/api/admin/cards/scan', upload.single('cardImage'), async (req, res) => {
   try {
-    if (!tableClient) {
-      return res.status(503).json({ error: 'Table Storage service is not available' });
+    if (!documentIntelligenceClient) {
+      return res.status(503).json({ error: 'Azure Document Intelligence service is not available' });
     }
     
-    console.log('Retrieving all scanned cards');
-    
-    const entities = [];
-    const entitiesIterator = tableClient.listEntities({
-      filter: `PartitionKey eq 'admin-cards'`
-    });
-    
-    for await (const entity of entitiesIterator) {
-      entities.push(entity);
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
-    
-    console.log(`Retrieved ${entities.length} card data entities from table storage`);
-    
-    res.json({
-      cards: entities
-    });
-  } catch (error) {
-    console.error('Get cards error:', error);
-    res.status(500).json({ 
-      error: 'Failed to retrieve cards',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
 
-// Delete a scanned card
-app.delete('/api/admin/cards/:id', async (req, res) => {
-  try {
-    if (!tableClient) {
-      return res.status(503).json({ error: 'Table Storage service is not available' });
+    console.log('Processing admin card scan request with Azure Document Intelligence');
+    
+    // Analyze the document using Azure Document Intelligence
+    const poller = await documentIntelligenceClient.beginAnalyzeDocument('prebuilt-idDocument', req.file.buffer);
+    const { documents } = await poller.pollUntilDone();
+    
+    if (!documents || documents.length === 0) {
+      return res.status(400).json({ error: 'No documents found in the analysis result' });
     }
     
-    const { id } = req.params;
+    const document = documents[0];
+    const fields = document.fields;
     
-    if (!id) {
-      return res.status(400).json({ error: 'Card ID is required' });
+    // Extract common passport/card fields
+    const cardData = {
+      name: (fields.FirstName?.value || '') + ' ' + (fields.LastName?.value || ''),
+      passportNumber: fields.DocumentNumber?.value || '',
+      nationality: fields.CountryRegion?.value || fields.Nationality?.value || fields.Country?.value || '',
+      sex: fields.Sex?.value || fields.Gender?.value || '',
+      birthDate: fields.DateOfBirth?.value || '',
+      expiryDate: fields.DateOfExpiration?.value || ''
+    };
+    
+    // Clean up name by removing extra spaces
+    cardData.name = cardData.name.trim().replace(/\s+/g, ' ');
+    
+    // Try alternative field names for nationality if not found
+    if (!cardData.nationality) {
+      // Check for common alternative field names
+      const nationalityFields = ['Nationality', 'Country', 'IssuingCountry', 'CountryOfIssue'];
+      for (const field of nationalityFields) {
+        const value = fields[field]?.value;
+        if (value) {
+          cardData.nationality = String(value);
+          break;
+        }
+      }
     }
     
-    console.log(`Deleting card with ID: ${id}`);
+    // Add any additional fields that might be present
+    for (const [key, value] of Object.entries(fields)) {
+      if (!(key in cardData) && value && 'value' in value) {
+        cardData[key] = String(value.value);
+      }
+    }
     
-    await tableClient.deleteEntity('admin-cards', id);
-    
-    console.log('Card data deleted successfully from table storage');
+    console.log('Successfully analyzed card document', cardData);
     
     res.json({
-      message: 'Card deleted successfully'
+      message: 'Card scanned successfully',
+      cardData
     });
   } catch (error) {
-    console.error('Delete card error:', error);
+    console.error('Card scan error:', error);
     res.status(500).json({ 
-      error: 'Failed to delete card',
+      error: 'Failed to scan card',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

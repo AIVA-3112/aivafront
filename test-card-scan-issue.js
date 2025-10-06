@@ -7,12 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Try to load environment from different locations
-dotenv.config({ path: path.resolve(__dirname, 'updarte/aivafront-main/.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, 'server/.env.cleaned') });
 
 import { DocumentAnalysisClient, AzureKeyCredential } from '@azure/ai-form-recognizer';
 import { TableServiceClient, TableClient, AzureNamedKeyCredential } from '@azure/data-tables';
 
-console.log('=== Card Scan Fix Verification ===');
+console.log('=== Card Scan Issue Diagnosis ===');
 console.log('Environment variables loaded:');
 console.log('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT:', process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ? 'SET' : 'NOT SET');
 console.log('AZURE_DOCUMENT_INTELLIGENCE_KEY:', process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY ? 'SET' : 'NOT SET');
@@ -43,11 +44,17 @@ try {
   
   if (accountName && accountKey) {
     const credential = new AzureNamedKeyCredential(accountName, accountKey);
+    const tableServiceClient = new TableServiceClient(
+      `https://${accountName}.table.core.windows.net`,
+      credential
+    );
+    
     tableClient = new TableClient(
       `https://${accountName}.table.core.windows.net`,
       'carddata',
       credential
     );
+    
     console.log('✅ Azure Table Storage client initialized');
   } else {
     console.log('⚠️ Azure Table Storage not configured (missing environment variables)');
@@ -76,54 +83,21 @@ async function testServices() {
     try {
       console.log('Testing Table Storage service...');
       // Try to create table if it doesn't exist
-      try {
-        const tableServiceClient = new TableServiceClient(
-          `https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.table.core.windows.net`,
-          new AzureNamedKeyCredential(process.env.AZURE_STORAGE_ACCOUNT_NAME, process.env.AZURE_STORAGE_ACCOUNT_KEY)
-        );
-        
-        await tableServiceClient.createTable('carddata');
-        console.log('✅ Table Storage service is accessible');
-      } catch (error) {
-        if (error.statusCode === 409) {
-          console.log('✅ Table Storage service is accessible (table already exists)');
-        } else {
-          throw error;
-        }
-      }
+      const tableServiceClient = new TableServiceClient(
+        `https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.table.core.windows.net`,
+        new AzureNamedKeyCredential(process.env.AZURE_STORAGE_ACCOUNT_NAME, process.env.AZURE_STORAGE_ACCOUNT_KEY)
+      );
       
-      // Test storing and retrieving data
-      console.log('Testing data storage and retrieval...');
-      
-      // Create a test entity
-      const testEntity = {
-        partitionKey: 'test-cards',
-        rowKey: `test-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        name: 'Test User',
-        passportNumber: 'P12345678',
-        nationality: 'Testland',
-        testField: 'This is a test entry'
-      };
-      
-      // Store the entity
-      await tableClient.createEntity(testEntity);
-      console.log('✅ Data storage test passed');
-      
-      // Retrieve the entity
-      const retrievedEntity = await tableClient.getEntity('test-cards', testEntity.rowKey);
-      console.log('✅ Data retrieval test passed');
-      
-      // Clean up - delete the test entity
-      await tableClient.deleteEntity('test-cards', testEntity.rowKey);
-      console.log('✅ Data cleanup test passed');
-      
+      await tableServiceClient.createTable('carddata');
+      console.log('✅ Table Storage service is accessible');
     } catch (error) {
-      console.error('❌ Table Storage service test failed:', error.message);
+      if (error.statusCode === 409) {
+        console.log('✅ Table Storage service is accessible (table already exists)');
+      } else {
+        console.error('❌ Table Storage service test failed:', error.message);
+      }
     }
   }
-  
-  console.log('\n=== Test Complete ===');
 }
 
 testServices().catch(console.error);
