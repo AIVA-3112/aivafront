@@ -702,8 +702,8 @@ export const cardAPI = {
     
     const token = localStorage.getItem('authToken');
     try {
-      // Use the direct endpoint for card scanning through the frontend server
-      const response = await fetch(`/api/document-intelligence/scan-card`, {
+      // Use the admin endpoint for card scanning
+      const response = await fetch(`/api/admin/cards/scan`, {
         method: 'POST',
         headers: token ? {
           'Authorization': `Bearer ${token}`

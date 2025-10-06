@@ -12,8 +12,8 @@ interface LoginPageProps {
 
 const LoginPage: React.FC<LoginPageProps> = ({ onBack, onLoginSuccess, onNavigateToSignUp, onNavigateToHome, onNavigateToAdminLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('sudhenreddym@gmail.com'); // Pre-filled with test credentials
-  const [password, setPassword] = useState('password123'); // Pre-filled with test credentials
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [socialLoginError, setSocialLoginError] = useState<string | null>(null);

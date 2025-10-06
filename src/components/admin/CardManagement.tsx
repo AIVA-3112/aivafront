@@ -216,22 +216,23 @@ const CardManagement: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Scanned Card Data</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Front Side Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Civil ID No</label>
+              <input
+                type="text"
+                value={scannedData.civilIdNo || ''}
+                onChange={(e) => setScannedData({...scannedData, civilIdNo: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input
                 type="text"
                 value={scannedData.name || ''}
                 onChange={(e) => setScannedData({...scannedData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
-              <input
-                type="text"
-                value={scannedData.passportNumber || ''}
-                onChange={(e) => setScannedData({...scannedData, passportNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -276,10 +277,21 @@ const CardManagement: React.FC = () => {
               />
             </div>
             
+            {/* Back Side Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Serial No</label>
+              <input
+                type="text"
+                value={scannedData.serialNo || ''}
+                onChange={(e) => setScannedData({...scannedData, serialNo: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
             {/* Display any additional fields that were extracted */}
             {Object.entries(scannedData).map(([key, value]) => {
               // Skip the fields we've already displayed
-              if (['name', 'passportNumber', 'nationality', 'sex', 'birthDate', 'expiryDate'].includes(key)) {
+              if (['civilIdNo', 'name', 'nationality', 'sex', 'birthDate', 'expiryDate', 'serialNo'].includes(key)) {
                 return null;
               }
               
@@ -336,12 +348,13 @@ const CardManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Civil ID No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passport</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nationality</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sex</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birth Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scan Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -349,12 +362,13 @@ const CardManagement: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {cards.map((card) => (
                   <tr key={card.rowKey}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{card.name || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.passportNumber || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{card.civilIdNo || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.name || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.nationality || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.sex || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.birthDate || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.expiryDate || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{card.serialNo || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatTimestamp(card.timestamp)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
@@ -377,7 +391,7 @@ const CardManagement: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {Object.entries(card).map(([key, value]) => {
                     // Skip the fields we've already displayed in the table
-                    if (['name', 'passportNumber', 'nationality', 'sex', 'birthDate', 'expiryDate', 'rowKey', 'partitionKey', 'timestamp'].includes(key)) {
+                    if (['civilIdNo', 'name', 'nationality', 'sex', 'birthDate', 'expiryDate', 'serialNo', 'rowKey', 'partitionKey', 'timestamp'].includes(key)) {
                       return null;
                     }
                     

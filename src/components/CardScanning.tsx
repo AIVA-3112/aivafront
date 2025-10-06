@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Camera, Upload, Scan, AlertCircle } from 'lucide-react';
+import Webcam from 'react-webcam';
+import { ArrowLeft, Camera, Upload, Scan, AlertCircle, X } from 'lucide-react';
 import { cardAPI } from '../utils/api';
 
 const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -8,22 +9,76 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const webcamRef = useRef<Webcam>(null);
+  
+  // New states for front and back card images
+  const [frontCardImage, setFrontCardImage] = useState<string | null>(null);
+  const [backCardImage, setBackCardImage] = useState<string | null>(null);
+  const [frontCardFile, setFrontCardFile] = useState<File | null>(null);
+  const [backCardFile, setBackCardFile] = useState<File | null>(null);
+  const [currentSide, setCurrentSide] = useState<'front' | 'back' | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, side: 'front' | 'back') => {
     if (!file) return;
 
     try {
-      setIsScanning(true);
       setError(null);
+      
+      // Save the image for display and file for scanning
+      const imageUrl = URL.createObjectURL(file);
+      if (side === 'front') {
+        setFrontCardImage(imageUrl);
+        setFrontCardFile(file);
+      } else {
+        setBackCardImage(imageUrl);
+        setBackCardFile(file);
+      }
+      
+      // Check if both sides are available to scan
+      // Use setTimeout to ensure state is updated before checking
+      setTimeout(() => {
+        // Get current values directly from state setters
+        const hasFront = side === 'front' ? true : !!frontCardFile;
+        const hasBack = side === 'back' ? true : !!backCardFile;
+        
+        if (hasFront && hasBack) {
+          // Both sides are available, run the scan
+          scanBothSides(side === 'front' ? file : frontCardFile!, side === 'back' ? file : backCardFile!);
+        }
+      }, 0);
+    } catch (err: any) {
+      setError('Failed to process card: ' + (err.message || 'Unknown error'));
+      console.error(err);
+    }
+  };
+
+  const scanBothSides = async (frontFile: File, backFile: File) => {
+    if (!frontFile || !backFile) return;
+
+    try {
+      setIsScanning(true);
       setLoading(true);
+      setError(null);
       
-      // Call the real API to scan the card
-      const result = await cardAPI.scanCard(file);
+      // Scan front side
+      const frontResult = await cardAPI.scanCard(frontFile);
+      const frontData = frontResult.cardData;
       
-      // Set the scanned data
-      setScannedData(result.cardData);
+      // Scan back side
+      const backResult = await cardAPI.scanCard(backFile);
+      const backData = backResult.cardData;
+      
+      // Combine data from both sides
+      // Front side has: civilIdNo, name, nationality, sex, birthDate, expiryDate
+      // Back side has: serialNo
+      const combinedData = {
+        ...frontData,
+        serialNo: backData.serialNo || backData.civilIdNo // Use serialNo or civilIdNo from back
+      };
+      
+      // Set the combined scanned data
+      setScannedData(combinedData);
       setIsScanning(false);
       setLoading(false);
     } catch (err: any) {
@@ -34,46 +89,67 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     const file = e.target.files?.[0];
     if (file) {
-      handleFileUpload(file);
+      handleFileUpload(file, side);
     }
   };
 
-  const triggerFileSelect = () => {
-    fileInputRef.current?.click();
+  const triggerFileSelect = (side: 'front' | 'back') => {
+    setCurrentSide(side);
+    // Store the side in a ref to access it in the onChange handler
+    if (fileInputRef.current) {
+      (fileInputRef.current as any).side = side;
+      fileInputRef.current.click();
+    }
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-      }
-    } catch (err: any) {
-      setError('Failed to access camera: ' + (err.message || 'Unknown error'));
-      console.error(err);
-    }
+  const startCamera = (side: 'front' | 'back') => {
+    setCurrentSide(side);
+    setIsCameraActive(true);
   };
 
   const captureImage = () => {
-    if (videoRef.current && streamRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-            handleFileUpload(file);
-          }
-        }, 'image/jpeg');
+    if (webcamRef.current && currentSide) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (imageSrc) {
+        // Convert data URL to Blob
+        fetch(imageSrc)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], `captured-image-${currentSide}.jpg`, { type: 'image/jpeg' });
+            if (currentSide === 'front') {
+              setFrontCardImage(imageSrc);
+              setFrontCardFile(file);
+            } else {
+              setBackCardImage(imageSrc);
+              setBackCardFile(file);
+            }
+            
+            // Check if both sides are available to scan
+            setTimeout(() => {
+              // Get current values directly from state setters
+              const hasFront = currentSide === 'front' ? true : !!frontCardFile;
+              const hasBack = currentSide === 'back' ? true : !!backCardFile;
+              
+              if (hasFront && hasBack) {
+                // Both sides are available, run the scan
+                scanBothSides(currentSide === 'front' ? file : frontCardFile!, currentSide === 'back' ? file : backCardFile!);
+              }
+            }, 0);
+            
+            // Stop camera after capture
+            setIsCameraActive(false);
+            setCurrentSide(null);
+          });
       }
     }
+  };
+
+  const stopCamera = () => {
+    setIsCameraActive(false);
+    setCurrentSide(null);
   };
 
   // Format timestamp for display
@@ -103,8 +179,8 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <Camera className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Scan ID/Passport Card</h2>
-              <p className="text-gray-600">Upload or capture an image of your ID/passport for automatic data extraction</p>
+              <h2 className="text-2xl font-bold text-gray-800">Scan Civil ID Card</h2>
+              <p className="text-gray-600">Upload or capture images of both sides of your Civil ID card for automatic data extraction</p>
             </div>
           </div>
 
@@ -117,73 +193,145 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             )}
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Camera Section */}
+              {/* Front Side Section */}
               <div className="border border-gray-200 rounded-xl p-6">
                 <h3 className="font-medium text-gray-700 mb-4 flex items-center text-lg">
                   <Camera className="mr-2 h-5 w-5" />
-                  Scan with Camera
+                  Front Side of Civil ID Card
                 </h3>
                 
                 <div className="space-y-4">
                   <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-                    {streamRef.current ? (
-                      <video 
-                        ref={videoRef} 
-                        autoPlay 
-                        playsInline 
+                    {isCameraActive && currentSide === 'front' ? (
+                      <Webcam
+                        ref={webcamRef}
+                        audio={false}
+                        screenshotFormat="image/jpeg"
+                        videoConstraints={{ facingMode: "user" }}
                         className="w-full h-full object-cover"
+                      />
+                    ) : frontCardImage ? (
+                      <img 
+                        src={frontCardImage} 
+                        alt="Front side of Civil ID card" 
+                        className="w-full h-full object-contain"
                       />
                     ) : (
                       <div className="text-center text-gray-500">
                         <Camera className="mx-auto h-12 w-12 mb-2" />
-                        <p>Camera feed will appear here</p>
+                        <p>Front side image will appear here</p>
                       </div>
                     )}
                   </div>
                   
                   <div className="flex space-x-3">
-                    {!streamRef.current ? (
-                      <button
-                        onClick={startCamera}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Start Camera
-                      </button>
+                    {isCameraActive && currentSide === 'front' ? (
+                      <>
+                        <button
+                          onClick={captureImage}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Scan className="mr-2 h-4 w-4" />
+                          Capture Front Side
+                        </button>
+                        <button
+                          onClick={stopCamera}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Cancel
+                        </button>
+                      </>
                     ) : (
-                      <button
-                        onClick={captureImage}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
-                      >
-                        <Scan className="mr-2 h-4 w-4" />
-                        Capture & Scan
-                      </button>
+                      <>
+                        <button
+                          onClick={() => startCamera('front')}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Camera className="mr-2 h-4 w-4" />
+                          Start Camera
+                        </button>
+                        <button
+                          onClick={() => triggerFileSelect('front')}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Front
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
               
-              {/* Upload Section */}
+              {/* Back Side Section */}
               <div className="border border-gray-200 rounded-xl p-6">
                 <h3 className="font-medium text-gray-700 mb-4 flex items-center text-lg">
-                  <Upload className="mr-2 h-5 w-5" />
-                  Upload Card Image
+                  <Camera className="mr-2 h-5 w-5" />
+                  Back Side of Civil ID Card
                 </h3>
                 
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition-colors"
-                  onClick={triggerFileSelect}
-                >
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-gray-600 mb-1 font-medium">Click to upload card image</p>
-                  <p className="text-sm text-gray-500">Supports JPG, PNG, PDF (Max 10MB)</p>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                  />
+                <div className="space-y-4">
+                  <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                    {isCameraActive && currentSide === 'back' ? (
+                      <Webcam
+                        ref={webcamRef}
+                        audio={false}
+                        screenshotFormat="image/jpeg"
+                        videoConstraints={{ facingMode: "user" }}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : backCardImage ? (
+                      <img 
+                        src={backCardImage} 
+                        alt="Back side of Civil ID card" 
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="text-center text-gray-500">
+                        <Camera className="mx-auto h-12 w-12 mb-2" />
+                        <p>Back side image will appear here</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    {isCameraActive && currentSide === 'back' ? (
+                      <>
+                        <button
+                          onClick={captureImage}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Scan className="mr-2 h-4 w-4" />
+                          Capture Back Side
+                        </button>
+                        <button
+                          onClick={stopCamera}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startCamera('back')}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Camera className="mr-2 h-4 w-4" />
+                          Start Camera
+                        </button>
+                        <button
+                          onClick={() => triggerFileSelect('back')}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Back
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -192,7 +340,7 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {isScanning && (
               <div className="mt-6 p-4 bg-blue-50 rounded-lg flex items-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
-                <span className="text-blue-700 font-medium">Scanning card with Azure Document Intelligence...</span>
+                <span className="text-blue-700 font-medium">Scanning card with AIVA Document Intelligence...</span>
               </div>
             )}
           </div>
@@ -212,22 +360,23 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Front Side Fields */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Civil ID No</label>
+                <input
+                  type="text"
+                  value={scannedData.civilIdNo || ''}
+                  onChange={(e) => setScannedData({...scannedData, civilIdNo: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                 <input
                   type="text"
                   value={scannedData.name || ''}
                   onChange={(e) => setScannedData({...scannedData, name: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Passport Number</label>
-                <input
-                  type="text"
-                  value={scannedData.passportNumber || ''}
-                  onChange={(e) => setScannedData({...scannedData, passportNumber: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
@@ -272,10 +421,21 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 />
               </div>
               
+              {/* Back Side Fields */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Serial No</label>
+                <input
+                  type="text"
+                  value={scannedData.serialNo || ''}
+                  onChange={(e) => setScannedData({...scannedData, serialNo: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              
               {/* Display any additional fields that were extracted */}
               {Object.entries(scannedData).map(([key, value]) => {
                 // Skip the fields we've already displayed
-                if (['name', 'passportNumber', 'nationality', 'sex', 'birthDate', 'expiryDate'].includes(key)) {
+                if (['civilIdNo', 'name', 'nationality', 'sex', 'birthDate', 'expiryDate', 'serialNo'].includes(key)) {
                   return null;
                 }
                 
@@ -305,6 +465,18 @@ const CardScanning: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </div>
           </div>
         )}
+        
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={(e) => {
+            const side = (e.target as any).side as 'front' | 'back';
+            handleFileChange(e, side || 'front');
+          }}
+        />
       </div>
     </div>
   );
