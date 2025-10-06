@@ -1,0 +1,217 @@
+[
+  {
+    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "value": "InstrumentationKey=c89d8c37-a3a6-4a78-b969-4ca37268523e;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/;LiveEndpoint=https://westeurope.livediagnostics.monitor.azure.com/;ApplicationId=bfc57f6d-dd73-4361-92e7-c386289b169a",
+    "slotSetting": false
+  },
+  {
+    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+    "value": "~3",
+    "slotSetting": false
+  },
+  {
+    "name": "XDT_MicrosoftApplicationInsights_Mode",
+    "value": "default",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_KEY_VAULT_URL",
+    "value": "https://aivakeys.vault.azure.net/",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_TENANT_ID",
+    "value": "53be55ec-4183-4a38-8c83-8e6e12e2318a",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_CLIENT_ID",
+    "value": "613e41ad-ed10-491c-8788-b42f488aaa29",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_CLIENT_SECRET",
+    "value": "ic78Q~3BH4_u9xzptWF_Ga6KL24ZKB-AilaTebLf",
+    "slotSetting": true
+  },
+  {
+    "name": "MICROSOFT_REDIRECT_URI",
+    "value": "https://your-web-app-name.azurewebsites.net/auth/microsoft/callback",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_AUTHORITY_HOST",
+    "value": "https://login.microsoftonline.com",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_APP_CONFIG_CONNECTION_STRING",
+    "value": "Endpoint=https://aivaappconfig.azconfig.io;Id=es/G;Secret=8hkZXEU4QWfookH1w1Q38Mt3t2LLFq0Q5svvnqpzpJ3vS6DfdsgvJQQJ99BIAC77bzftTdL0AAACAZACAqOG",
+    "slotSetting": true
+  },
+  {
+    "name": "SQL_SERVER",
+    "value": "aivaserver.database.windows.net",
+    "slotSetting": true
+  },
+  {
+    "name": "SQL_DATABASE",
+    "value": "aivadb",
+    "slotSetting": true
+  },
+  {
+    "name": "SQL_USERNAME",
+    "value": "aivadbadmin",
+    "slotSetting": true
+  },
+  {
+    "name": "SQL_PASSWORD",
+    "value": "ravi@0791",
+    "slotSetting": true
+  },
+  {
+    "name": "SQL_ENCRYPT",
+    "value": "true",
+    "slotSetting": false
+  },
+  {
+    "name": "SQL_TRUST_SERVER_CERTIFICATE",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "SQL_CONNECTION_TIMEOUT",
+    "value": "60000",
+    "slotSetting": false
+  },
+  {
+    "name": "SQL_REQUEST_TIMEOUT",
+    "value": "60000",
+    "slotSetting": false
+  },
+  {
+    "name": "AZURE_STORAGE_ACCOUNT_NAME",
+    "value": "storageaiva",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_STORAGE_ACCOUNT_KEY",
+    "value": "eKOMEOh13uwioq3anaI9JTgeq7HwWMhVG/xlhAEAnkMzX0wjMCwmkV9fM+QGKLvBOxjIjesrs6Rw+AStspGnqw==",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_STORAGE_CONNECTION_STRING",
+    "value": "DefaultEndpointsProtocol=https;AccountName=storageaiva;AccountKey=eKOMEOh13uwioq3anaI9JTgeq7HwWMhVG/xlhAEAnkMzX0wjMCwmkV9fM+QGKLvBOxjIjesrs6Rw+AStspGnqw==;EndpointSuffix=core.windows.net",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_STORAGE_CONTAINER_NAME",
+    "value": "aiva-files",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_OPENAI_ENDPOINT",
+    "value": "https://aivabot.openai.azure.com/",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_OPENAI_API_KEY",
+    "value": "2bNfdvibHql4eukLJcQZcFRI3Sz5NO7UqomvY1b5ZJNsfzVlUuEuJQQJ99BIACfhMk5XJ3w3AAABACOG8uNK",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_OPENAI_DEPLOYMENT_NAME",
+    "value": "gpt-4o",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_AI_SEARCH_ENDPOINT",
+    "value": "https://aivasearch.search.windows.net",
+    "slotSetting": true
+  },
+  {
+    "name": "AZURE_AI_SEARCH_API_KEY",
+    "value": "YOUR_AI_SEARCH_API_KEY_HERE",
+    "slotSetting": true
+  },
+  {
+    "name": "JWT_SECRET",
+    "value": "aiva-secure-jwt-secret-key-change-in-production",
+    "slotSetting": true
+  },
+  {
+    "name": "JWT_EXPIRES_IN",
+    "value": "24h",
+    "slotSetting": false
+  },
+  {
+    "name": "ADMIN_EMAILS",
+    "value": "aiva50543@gmail.com",
+    "slotSetting": true
+  },
+  {
+    "name": "PORT",
+    "value": "8080",
+    "slotSetting": false
+  },
+  {
+    "name": "MOCK_SQL",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "MOCK_DATABASE",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "MOCK_STORAGE",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "MOCK_APP_CONFIG",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "MOCK_OPENAI",
+    "value": "false",
+    "slotSetting": false
+  },
+  {
+    "name": "BYPASS_AUTH",
+    "value": "false",
+    "slotSetting": true
+  },
+  {
+    "name": "NODE_ENV",
+    "value": "production",
+    "slotSetting": true
+  },
+  {
+    "name": "VITE_MICROSOFT_CLIENT_ID",
+    "value": "613e41ad-ed10-491c-8788-b42f488aaa29",
+    "slotSetting": true
+  },
+  {
+    "name": "VITE_MICROSOFT_TENANT_ID",
+    "value": "53be55ec-4183-4a38-8c83-8e6e12e2318a",
+    "slotSetting": true
+  },
+  {
+    "name": "VITE_AZURE_AI_SEARCH_ENDPOINT",
+    "value": "https://aivasearch.search.windows.net",
+    "slotSetting": true
+  },
+  {
+    "name": "VITE_GOOGLE_CLIENT_ID",
+    "value": "your-google-client-id",
+    "slotSetting": true
+  },
+  {
+    "name": "VITE_YAHOO_CLIENT_ID",
+    "value": "your-yahoo-client-id",
+    "slotSetting": true
+  }
+]
