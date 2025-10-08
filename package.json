@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "setup-workspace": "node server/src/scripts/ensure-default-workspace.js",
+  
     "dev:full": "concurrently \"npm run dev\" \"cd server && npm run dev\""
   },
   "engines": {
