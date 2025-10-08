@@ -463,7 +463,7 @@ export const adminAPI = {
   },
   
   async createUser(userData: any) {
-    return apiRequest('/admin/users', {
+    return apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -752,3 +752,4 @@ function getAuthHeadersWithoutContentType() {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
+
