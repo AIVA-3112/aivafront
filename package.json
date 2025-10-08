@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
   
-    "dev:full": "concurrently \"npm run dev\" \"cd server && npm run dev\""
+  
   },
   "engines": {
     "node": ">=18.0.0"
