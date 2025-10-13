@@ -1,0 +1,113 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import HomePage from './components/HomePage';
+import LoginPage from './components/LoginPage';
+import SignUpPage from './components/SignUpPage';
+import Dashboard from './components/Dashboard';
+import AdminLogin from './components/AdminLogin';
+import AdminSignUpRequest from './components/AdminSignUpRequest';
+import AdminDashboard from './components/AdminDashboard';
+import OAuthCallback from './components/OAuthCallback';
+import CardScanning from './components/CardScanning';
+import WorkspacesPage from './components/WorkspacesPage';
+import HistoryPage from './components/HistoryPage';
+import BookmarksPage from './components/BookmarksPage';
+import LikedMessagesPage from './components/LikedMessagesPage';
+import DislikedMessagesPage from './components/DislikedMessagesPage';
+import FeedbackPage from './components/FeedbackPage';
+import AboutAIVA from './components/AboutAIVA';
+import AIVAPresentation from './components/AIVAPresentation';
+import DataQueryPanel from './components/DataQueryPanel';
+import TestAdminDB from './components/TestAdminDB';
+
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  // Check authentication status on app load
+  useEffect(() => {
+    const storedAuth = localStorage.getItem('isAuthenticated');
+    const storedAdminAuth = localStorage.getItem('adminAuthenticated');
+    const storedUser = localStorage.getItem('user');
+    
+    if (storedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+    
+    if (storedAdminAuth === 'true') {
+      setIsAdminAuthenticated(true);
+    }
+    
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+      }
+    }
+  }, []);
+
+  const handleLogin = (userData: any) => {
+    setIsAuthenticated(true);
+    setUser(userData);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  const handleAdminLogin = (adminData: any) => {
+    setIsAdminAuthenticated(true);
+    setUser(adminData);
+    localStorage.setItem('adminAuthenticated', 'true');
+    localStorage.setItem('user', JSON.stringify(adminData));
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsAdminAuthenticated(false);
+    setUser(null);
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('adminAuthenticated');
+    localStorage.removeItem('user');
+    localStorage.removeItem('adminUsername');
+    localStorage.removeItem('adminEmail');
+    localStorage.removeItem('adminLicenseVerified');
+    localStorage.removeItem('adminAuthenticated');
+    localStorage.removeItem('currentAdminRequest');
+  };
+
+  // Create wrapper functions for navigation
+  const navigateToAdminLogin = () => {
+    window.location.hash = '/admin/login';
+  };
+
+  return (
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<HomePage user={{}} onNavigateToLogin={() => {}} onNavigateToSignUp={() => {}} onNavigateToDashboard={() => {}} />} />
+          <Route path="/login" element={<LoginPage onBack={() => {}} onLoginSuccess={() => {}} onNavigateToSignUp={() => {}} onNavigateToHome={() => {}} onNavigateToAdminLogin={() => {}} />} />
+          <Route path="/signup" element={<SignUpPage onBack={() => {}} onSignUpSuccess={() => {}} onNavigateToLogin={() => {}} onNavigateToHome={() => {}} />} />
+          <Route path="/dashboard/*" element={isAuthenticated ? <Dashboard user={user} onLogout={handleLogout} onSwitchAccount={() => {}} onNavigateToHome={() => {}} onNavigateHome={() => {}} onNavigateToDashboard={() => {}} /> : <Navigate to="/login" />} />
+          <Route path="/admin/login" element={<AdminLogin onLogin={handleAdminLogin} onBack={() => {}} onAdminLoginSuccess={() => {}} onNavigateToAdminSignUp={() => {}} />} />
+          <Route path="/admin/signup-request" element={<AdminSignUpRequest onBack={navigateToAdminLogin} onSignUpRequested={navigateToAdminLogin} />} />
+          <Route path="/admin/dashboard" element={isAdminAuthenticated ? <AdminDashboard user={user} onLogout={handleLogout} /> : <Navigate to="/admin/login" />} />
+          <Route path="/auth/microsoft/callback" element={<OAuthCallback onLogin={handleLogin} />} />
+          <Route path="/card-scanning" element={<CardScanning onBack={() => {}} />} />
+          <Route path="/workspaces" element={<WorkspacesPage onBack={() => {}} workspaces={[]} onSelectWorkspace={() => {}} />} />
+          <Route path="/history" element={<HistoryPage onBack={() => {}} chatHistory={[]} onLoadChat={() => {}} onNavigateToMessage={() => {}} />} />
+          <Route path="/bookmarks" element={<BookmarksPage onBack={() => {}} bookmarkedMessages={[]} onNavigateToMessage={() => {}} />} />
+          <Route path="/liked" element={<LikedMessagesPage onBack={() => {}} likedMessages={[]} onNavigateToMessage={() => {}} />} />
+          <Route path="/disliked" element={<DislikedMessagesPage onBack={() => {}} dislikedMessages={[]} onNavigateToMessage={() => {}} />} />
+          <Route path="/feedback" element={<FeedbackPage onBack={() => {}} />} />
+          <Route path="/about" element={<AboutAIVA />} />
+          <Route path="/presentation" element={<AIVAPresentation />} />
+          <Route path="/data-query" element={<DataQueryPanel />} />
+          <Route path="/test-admin-db" element={<TestAdminDB />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
